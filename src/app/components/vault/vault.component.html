@@ -1,0 +1,73 @@
+<div class="min-h-screen bg-slate-50 p-6">
+  <div class="max-w-3xl mx-auto">
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-3xl font-bold">My Vault</h1>
+      <button
+        class="px-3 py-2 bg-red-600 text-white rounded"
+        (click)="logout()"
+      >
+        Logout
+      </button>
+    </div>
+
+    <div class="bg-white p-4 rounded shadow mb-6">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <input
+          class="p-2 border rounded col-span-1 md:col-span-1"
+          placeholder="Name"
+          [ngModel]="newName()"
+          (ngModelChange)="newName.set($event)"
+        />
+        <input
+          class="p-2 border rounded col-span-1 md:col-span-1"
+          placeholder="Username"
+          [ngModel]="newUsername()"
+          (ngModelChange)="newUsername.set($event)"
+        />
+        <input
+          class="p-2 border rounded col-span-1 md:col-span-1"
+          placeholder="Password"
+          [ngModel]="newPassword()"
+          (ngModelChange)="newPassword.set($event)"
+        />
+        <div class="flex gap-2">
+          <button
+            class="px-3 py-2 bg-green-600 text-white rounded"
+            (click)="generate()"
+          >
+            Generate
+          </button>
+          <button
+            class="px-3 py-2 bg-blue-600 text-white rounded"
+            (click)="save()"
+          >
+            Save entry
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <ul class="space-y-3">
+        @for (e of entries(); track e.id) {
+        <li
+          class="bg-white p-3 rounded shadow flex items-center justify-between"
+        >
+          <div>
+            <div class="font-semibold">{{ e.name }}</div>
+            <div class="text-sm text-slate-600">{{ e.username }}</div>
+          </div>
+          <div class="flex gap-2">
+            <button
+              class="px-3 py-2 bg-indigo-600 text-white rounded"
+              (click)="reveal(e)"
+            >
+              Copy password
+            </button>
+          </div>
+        </li>
+        }
+      </ul>
+    </div>
+  </div>
+</div>

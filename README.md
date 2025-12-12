@@ -1,59 +1,75 @@
-# VaultStarter
+# Vault Starter
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.0.3.
+This project is a secure personal vault application, built with Angular, designed to help users safely store and manage sensitive information. It leverages client-side encryption and integrates with Firebase for robust backend services, ensuring data privacy and security.
 
-## Development server
+## Features
 
-To start a local development server, run:
+*   **User Authentication**: Secure login and registration.
+*   **Secure Data Storage**: Encrypted storage of sensitive user data.
+*   **Automatic Locking**: Implements auto-lock functionality for enhanced security.
+*   **Data Encryption**: Utilizes cryptographic services for data protection.
+*   **Firebase Integration**: Leverages Firebase for authentication, database, and possibly other backend services.
+*   **Responsive User Interface**: Built with Angular for a dynamic and responsive user experience.
 
-```bash
-ng serve
-```
+## Technologies Used
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+*   **Angular**: Frontend framework for building the user interface.
+*   **TypeScript**: Primary language for Angular development.
+*   **Firebase**: Backend-as-a-Service (BaaS) for authentication, database (Firestore), and possibly hosting.
+*   **npm**: Package manager for project dependencies.
+*   **HTML/CSS**: For structuring and styling the application.
+*   **Cryptography Services**: Custom or integrated services for encryption/decryption.
 
-## Code scaffolding
+## Getting Started
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+These instructions will get you a copy of the project up and running on your local machine for development and testing purposes.
 
-```bash
-ng generate component component-name
-```
+### Prerequisites
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+Make sure you have Node.js and npm installed on your machine.
 
-```bash
-ng generate --help
-```
+*   [Node.js](https://nodejs.org/en/download/) (which includes npm)
+*   [Angular CLI](https://angular.io/cli) (install globally: `npm install -g @angular/cli`)
 
-## Building
+### Installation
 
-To build the project run:
+1.  Clone the repository:
+    ```bash
+    git clone https://github.com/jaestebang/vault_starter.git
+    cd vault_starter
+    ```
+2.  Install dependencies:
+    ```bash
+    npm install
+    ```
+3.  Set up Firebase:
+    *   Create a new Firebase project in the [Firebase Console](https://console.firebase.google.com/).
+    *   Add a web app to your Firebase project.
+    *   Copy your Firebase configuration.
+    *   Create `src/environments/environment.ts` (if it doesn't exist) and `src/environments/environment.prod.ts` files, and add your Firebase configuration to them. Example:
+        ```typescript
+        export const environment = {
+          production: false,
+          firebaseConfig: {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
+          }
+        };
+        ```
+    *   Configure Firestore rules (refer to `firestore.rules`).
 
-```bash
-ng build
-```
+### Development Server
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The application will automatically reload if you change any of the source files.
 
-## Running unit tests
+## Build
 
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
+Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory.
 
-```bash
-ng test
-```
+## Further help
 
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI Overview and Command Reference](https://angular.io/cli) page.
