@@ -1,30 +1,29 @@
 import { Injectable } from '@angular/core';
-import { 
-  Auth, 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  signOut, 
+import {
+  Auth,
   User,
-  onAuthStateChanged
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
 } from '@angular/fire/auth';
-import { 
-  Firestore, 
-  collection, 
-  addDoc, 
-  query, 
-  where, 
-  getDocs, 
-  Timestamp 
+import {
+  Firestore,
+  Timestamp,
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  query,
+  updateDoc,
+  where,
 } from '@angular/fire/firestore';
 import { Observable } from 'rxjs';
 
 @Injectable({ providedIn: 'root' })
 export class FirebaseService {
-
-  constructor(
-    private auth: Auth,
-    private firestore: Firestore
-  ) {}
+  constructor(private auth: Auth, private firestore: Firestore) {}
 
   register(email: string, password: string) {
     return createUserWithEmailAndPassword(this.auth, email, password);
@@ -43,8 +42,8 @@ export class FirebaseService {
   }
 
   getUser(): Observable<User | null> {
-    return new Observable(subscriber => {
-      onAuthStateChanged(this.auth, user => {
+    return new Observable((subscriber) => {
+      onAuthStateChanged(this.auth, (user) => {
         subscriber.next(user);
       });
     });
@@ -52,18 +51,41 @@ export class FirebaseService {
 
   async saveEntry(uid: string, payload: any) {
     const col = collection(this.firestore, 'vaultEntries');
-    const doc = await addDoc(col, {
+    const q = query(
+      col,
+      where('userId', '==', uid),
+      where('name', '==', payload.name),
+      where('username', '==', payload.username)
+    );
+
+    const snap = await getDocs(q);
+
+    if (!snap.empty) {
+      await updateDoc(snap.docs[0].ref, {
+        ...payload,
+        updatedAt: Timestamp.now(),
+      });
+      return snap.docs[0].id;
+    }
+
+    const docRef = await addDoc(col, {
       ...payload,
       userId: uid,
-      createdAt: Timestamp.now()
+      createdAt: Timestamp.now(),
     });
-    return doc.id;
+
+    return docRef.id;
   }
 
   async loadEntries(uid: string) {
     const col = collection(this.firestore, 'vaultEntries');
     const q = query(col, where('userId', '==', uid));
     const snap = await getDocs(q);
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  }
+
+  async deleteEntry(docId: string) {
+    const ref = doc(this.firestore, 'vaultEntries', docId);
+    await deleteDoc(ref);
   }
 }

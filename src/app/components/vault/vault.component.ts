@@ -83,6 +83,12 @@ export class VaultComponent implements OnInit, OnDestroy {
     this.newName.set('');
     this.newUsername.set('');
     this.newPassword.set('');
+    this.load();
+  }
+
+  async load() {
+    const user = this.user();
+    if (!user) return alert('You must be logged in to save an entry');
     const docs = await this.fb.loadEntries(user.uid);
     this.entries.set(docs);
   }
@@ -100,6 +106,11 @@ export class VaultComponent implements OnInit, OnDestroy {
   async revealView(e: any, el: HTMLInputElement) {
     const password = await this.revealPassword(e);
     el.value = password!;
+  }
+
+  async delete(e: any) {
+    await this.fb.deleteEntry(e.id);
+    this.load();
   }
 
   generate() {
