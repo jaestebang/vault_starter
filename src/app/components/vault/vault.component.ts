@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, computed } from '@angular/core';
 import { Router } from '@angular/router';
 import { FirebaseService } from '../../services/firebase.service';
 import { CryptoService } from '../../services/crypto.service';
@@ -19,6 +19,9 @@ export class VaultComponent implements OnInit, OnDestroy {
   newName = signal('');
   newUsername = signal('');
   newPassword = signal('');
+  isVaultOk = computed(() => {
+    return this.newName() && this.newUsername() && this.newPassword();
+  });
   user = signal<User | null>(null);
 
   private userSubscription: Subscription | undefined;
@@ -59,6 +62,7 @@ export class VaultComponent implements OnInit, OnDestroy {
     if (!this.master()) return alert('Master password required');
     const user = this.user();
     if (!user) return alert('You must be logged in to save an entry');
+    if (!this.isVaultOk()) return alert('Vault data is mandatory');
 
     const payload = {
       name: this.newName(),
@@ -83,23 +87,19 @@ export class VaultComponent implements OnInit, OnDestroy {
     this.entries.set(docs);
   }
 
-  async reveal(e: any) {
-    if (!this.master()) return alert('Master password missing');
-    const plain = await this.crypto.decryptEntry(
-      this.master(),
-      e.ciphertext,
-      e.iv,
-      e.salt
-    );
+  async revealPassword(e: any): Promise<string | null> {
+    if (!this.master()) {
+      alert('Master password missing');
+      return null;
+    }
+    const plain = await this.crypto.decryptEntry(this.master(), e.ciphertext, e.iv, e.salt);
     const obj = JSON.parse(plain);
-    // copy to clipboard and clear after 8 seconds
-    await navigator.clipboard.writeText(obj.password);
-    alert('Password copied to clipboard for 8 seconds');
-    setTimeout(async () => {
-      try {
-        await navigator.clipboard.writeText('');
-      } catch (_) {}
-    }, 8000);
+    return obj.password;
+  }
+
+  async revealView(e: any, el: HTMLInputElement) {
+    const password = await this.revealPassword(e);
+    el.value = password!;
   }
 
   generate() {
