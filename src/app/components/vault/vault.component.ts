@@ -15,6 +15,22 @@ import { Subscription } from 'rxjs';
 })
 export class VaultComponent implements OnInit, OnDestroy {
   entries = signal<any[]>([]);
+  sortedEntries = computed(() => {
+    // Get the current array value
+    const currentEntries = this.entries();
+    return currentEntries.slice().sort((a, b) => {
+      const nameA = a.name.toUpperCase();
+      const nameB = b.name.toUpperCase();
+
+      if (nameA < nameB) {
+        return -1;
+      }
+      if (nameA > nameB) {
+        return 1;
+      }
+      return 0;
+    });
+  });
   master = signal('');
   newName = signal('');
   newUsername = signal('');
@@ -91,6 +107,10 @@ export class VaultComponent implements OnInit, OnDestroy {
     if (!user) return alert('You must be logged in to save an entry');
     const docs = await this.fb.loadEntries(user.uid);
     this.entries.set(docs);
+    document.querySelectorAll('[name="decryptedPassword"]').forEach((el: Element) => {
+      const inputElement = el as HTMLInputElement;
+      inputElement.value = '';
+    });
   }
 
   async revealPassword(e: any): Promise<string | null> {
@@ -100,11 +120,18 @@ export class VaultComponent implements OnInit, OnDestroy {
     }
     const plain = await this.crypto.decryptEntry(this.master(), e.ciphertext, e.iv, e.salt);
     const obj = JSON.parse(plain);
+    this.newName.set(obj.name);
+    this.newUsername.set(obj.username);
+    this.newPassword.set(obj.password);
     return obj.password;
   }
 
   async revealView(e: any, el: HTMLInputElement) {
     const password = await this.revealPassword(e);
+    document.querySelectorAll('[name="decryptedPassword"]').forEach((el: Element) => {
+      const inputElement = el as HTMLInputElement;
+      inputElement.value = '';
+    });
     el.value = password!;
   }
 
