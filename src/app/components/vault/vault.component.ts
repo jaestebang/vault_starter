@@ -48,6 +48,11 @@ export class VaultComponent {
   });
 
   entries = computed(() => this.entriesResource.value() ?? []);
+  sortedEntries = computed(() => {
+    return [...this.entries()].sort((a, b) => {
+      return a.name.localeCompare(b.name);
+    });
+  });
 
   // Delete Resource
   deleteResource = resource({
