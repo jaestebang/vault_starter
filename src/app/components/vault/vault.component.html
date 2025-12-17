@@ -5,7 +5,7 @@
       <button class="px-3 py-2 bg-red-600 text-white rounded" (click)="logout()">Logout</button>
     </div>
 
-    <form class="bg-white p-4 rounded shadow mb-6" (submit)="$event.preventDefault(); save()">
+    <div class="bg-white p-4 rounded shadow mb-6">
       <div class="grid grid-cols-1 md:grid-cols-4 gap-1 text-sm">
         <div>
           <label for="newName" class="sr-only">Name</label>
@@ -14,8 +14,8 @@
             class="p-2 border rounded w-full"
             placeholder="Name"
             required
-            [ngModel]="newName()"
-            (ngModelChange)="newName.set($event)"
+            [ngModel]="entry().name"
+            (ngModelChange)="updateField('name', $event)"
             name="newName"
           />
         </div>
@@ -26,8 +26,8 @@
             class="p-2 border rounded w-full"
             placeholder="Username"
             required
-            [ngModel]="newUsername()"
-            (ngModelChange)="newUsername.set($event)"
+            [ngModel]="entry().username"
+            (ngModelChange)="updateField('username', $event)"
             name="newUsername"
           />
         </div>
@@ -38,25 +38,29 @@
             class="p-2 border rounded w-full"
             placeholder="Password"
             required
-            [ngModel]="newPassword()"
-            (ngModelChange)="newPassword.set($event)"
+            [ngModel]="entry().password"
+            (ngModelChange)="updateField('password', $event)"
             name="newPassword"
           />
         </div>
         <div class="flex justify-end gap-1">
-          <button class="p-2 bg-green-600 text-white rounded" (click)="generate()">
+          <button class="p-2 bg-green-600 text-white rounded" (click)="generatePassword()">
             Generate
           </button>
-          <button class="p-2 bg-blue-600 text-white rounded" (click)="save()">
+          <button
+            [disabled]="saveSignal()"
+            class="p-2 bg-blue-600 text-white rounded"
+            (click)="saveSignal.set(true)"
+          >
             Save
           </button>
         </div>
       </div>
-    </form>
+    </div>
 
     <div>
       <ul class="space-y-3">
-        @for (e of sortedEntries(); track e.id) {
+        @for (e of entries(); track e.id) {
         <li
           class="bg-white p-2 rounded shadow grid grid-cols-[45%_55%] items-center justify-between"
         >
@@ -85,7 +89,7 @@
               </button>
               <button
                 class="p-2 bg-orange-600 text-white shadow-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-opacity-75"
-                (click)="delete(e)"
+                (click)="entryToDelete.set(e.id)"
                 aria-label="Delete Password"
               >
                 <i class="fas fa-trash" aria-hidden="true"></i>

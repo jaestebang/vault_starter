@@ -1,11 +1,10 @@
-import { Component, OnInit, OnDestroy, signal, computed } from '@angular/core';
-import { Router } from '@angular/router';
-import { FirebaseService } from '../../services/firebase.service';
-import { CryptoService } from '../../services/crypto.service';
-import { AutoLockService } from '../../services/auto-lock.service';
+import { Component, computed, inject, resource, signal, WritableSignal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { User } from '@angular/fire/auth';
-import { Subscription } from 'rxjs';
+import { Router } from '@angular/router';
+import { AutoLockService } from '../../services/auto-lock.service';
+import { CryptoService } from '../../services/crypto.service';
+import { FirebaseService } from '../../services/firebase.service';
 
 @Component({
   selector: 'app-vault',
@@ -13,142 +12,161 @@ import { Subscription } from 'rxjs';
   standalone: true,
   imports: [FormsModule],
 })
-export class VaultComponent implements OnInit, OnDestroy {
-  entries = signal<any[]>([]);
-  sortedEntries = computed(() => {
-    // Get the current array value
-    const currentEntries = this.entries();
-    return currentEntries.slice().sort((a, b) => {
-      const nameA = a.name.toUpperCase();
-      const nameB = b.name.toUpperCase();
+export class VaultComponent {
+  // --- Services ---
+  private fb = inject(FirebaseService);
+  private crypto = inject(CryptoService);
+  private autoLock = inject(AutoLockService);
+  private router = inject(Router);
 
-      if (nameA < nameB) {
-        return -1;
-      }
-      if (nameA > nameB) {
-        return 1;
-      }
-      return 0;
-    });
+  // --- Auth State ---
+  user = toSignal(this.fb.getUser(), { initialValue: null });
+
+  // --- UI & Form State ---
+  refreshTrigger = signal(0);
+  saveSignal = signal(false);
+  entryToDelete = signal<string | null>(null);
+
+  entry: WritableSignal<{ name: string; username: string; password: string }> = signal({
+    name: '',
+    username: '',
+    password: '',
   });
-  master = signal('');
-  newName = signal('');
-  newUsername = signal('');
-  newPassword = signal('');
-  isVaultOk = computed(() => {
-    return this.newName() && this.newUsername() && this.newPassword();
+
+  // --- Resources (Data Handling) ---
+
+  // Fetch Entries
+  entriesResource = resource({
+    params: () => ({
+      user: this.user(),
+      version: this.refreshTrigger(),
+    }),
+    loader: async ({ params }) => {
+      if (!params.user) return [];
+      return await this.fb.loadEntries(params.user.uid);
+    },
   });
-  user = signal<User | null>(null);
 
-  private userSubscription: Subscription | undefined;
+  entries = computed(() => this.entriesResource.value() ?? []);
 
-  constructor(
-    public fb: FirebaseService,
-    private crypto: CryptoService,
-    private autoLock: AutoLockService,
-    private router: Router
-  ) {}
+  // Delete Resource
+  deleteResource = resource({
+    params: () => this.entryToDelete(),
+    loader: async ({ params: docId }) => {
+      if (!docId) return null;
+      try {
+        await this.fb.deleteEntry(docId);
+        this.resetEntry();
+        this.refreshTrigger.update((n) => n + 1);
+        return docId;
+      } catch (error) {
+        this.entryToDelete.set(null);
+        throw error;
+      }
+    },
+  });
 
-  ngOnInit() {
-    this.master.set(this.autoLock.getMaster());
-    if (!this.master()) {
+  // Save/Update Resource
+  saveResource = resource({
+    params: () => ({
+      user: this.user(),
+      master: this.autoLock.master(),
+      entry: this.entry(),
+      save: this.saveSignal(),
+    }),
+    loader: async ({ params }) => {
+      if (!params.save || !params.user || !params.entry || !params.master) return;
+
+      const { ciphertext, iv, salt } = await this.crypto.encryptWithMaster(
+        params.master!,
+        JSON.stringify(params.entry)
+      );
+
+      const docId = await this.fb.saveEntry(params.user!.uid, {
+        name: params.entry!.name,
+        username: params.entry!.username,
+        ciphertext,
+        iv,
+        salt,
+      });
+
+      this.saveSignal.set(false);
+      this.resetEntry();
+      this.refreshTrigger.update((n) => n + 1);
+
+      return docId;
+    },
+  });
+
+  // Check master resource
+  masterCheckResource = resource({
+    params: () => ({ master: this.autoLock.master() }),
+    loader: async ({ params }) => {
+      if (params.master && params.master.trim() !== '') return true;
       alert('Master password required — please login again');
       this.router.navigate(['/']);
-      return;
-    }
+      return false;
+    },
+  });
 
-    this.userSubscription = this.fb.getUser().subscribe(async (user) => {
-      this.user.set(user);
-      if (user) {
-        const docs = await this.fb.loadEntries(user.uid);
-        this.entries.set(docs);
-      } else {
-        this.router.navigate(['/']);
-      }
+  // --- Component Actions ---
+
+  updateField(field: string, value: string) {
+    this.entry.update((state) => ({
+      ...state,
+      [field]: value,
+    }));
+  }
+
+  resetEntry() {
+    this.entry.set({ name: '', username: '', password: '' });
+  }
+
+  reload() {
+    this.refreshTrigger.update((v) => v + 1);
+    this.resetEntry();
+  }
+
+  generatePassword() {
+    const generatedPassword = this.crypto.generatePassword(16, {
+      upper: true,
+      lower: true,
+      digits: true,
+      symbols: true,
     });
+    this.updateField('password', generatedPassword);
   }
 
-  ngOnDestroy() {
-    if (this.userSubscription) {
-      this.userSubscription.unsubscribe();
-    }
-  }
-
-  async save() {
-    if (!this.master()) return alert('Master password required');
-    const user = this.user();
-    if (!user) return alert('You must be logged in to save an entry');
-    if (!this.isVaultOk()) return alert('Vault data is mandatory');
-
-    const payload = {
-      name: this.newName(),
-      username: this.newUsername(),
-      password: this.newPassword(),
-    };
-    const { ciphertext, iv, salt } = await this.crypto.encryptWithMaster(
-      this.master(),
-      JSON.stringify(payload)
-    );
-    await this.fb.saveEntry(user.uid, {
-      name: this.newName(),
-      username: this.newUsername(),
-      ciphertext,
-      iv,
-      salt,
-    });
-    this.newName.set('');
-    this.newUsername.set('');
-    this.newPassword.set('');
-    this.load();
-  }
-
-  async load() {
-    const user = this.user();
-    if (!user) return alert('You must be logged in to save an entry');
-    const docs = await this.fb.loadEntries(user.uid);
-    this.entries.set(docs);
-    document.querySelectorAll('[name="decryptedPassword"]').forEach((el: Element) => {
-      const inputElement = el as HTMLInputElement;
-      inputElement.value = '';
-    });
-  }
+  // --- Crypto Logic ---
 
   async revealPassword(e: any): Promise<string | null> {
-    if (!this.master()) {
+    const master = this.autoLock.master();
+    if (!master) {
       alert('Master password missing');
       return null;
     }
-    const plain = await this.crypto.decryptEntry(this.master(), e.ciphertext, e.iv, e.salt);
+
+    const plain = await this.crypto.decryptEntry(master, e.ciphertext, e.iv, e.salt);
     const obj = JSON.parse(plain);
-    this.newName.set(obj.name);
-    this.newUsername.set(obj.username);
-    this.newPassword.set(obj.password);
     return obj.password;
   }
 
   async revealView(e: any, el: HTMLInputElement) {
     const password = await this.revealPassword(e);
-    document.querySelectorAll('[name="decryptedPassword"]').forEach((el: Element) => {
-      const inputElement = el as HTMLInputElement;
-      inputElement.value = '';
+
+    // Clear other visible passwords
+    document.querySelectorAll('[name="decryptedPassword"]').forEach((input) => {
+      (input as HTMLInputElement).value = '';
     });
+
     el.value = password!;
-  }
 
-  async delete(e: any) {
-    await this.fb.deleteEntry(e.id);
-    this.load();
-  }
-
-  generate() {
-    this.newPassword.set(
-      this.crypto.generatePassword(16, {
-        upper: true,
-        lower: true,
-        digits: true,
-        symbols: false,
-      })
-    );
+    // Load selected entry into form for editing
+    this.entry.set({
+      name: e.name,
+      username: e.username,
+      password: password!,
+    });
   }
 
   logout() {
